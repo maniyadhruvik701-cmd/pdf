@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getDatabase, ref, push, set, remove, onValue, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js';
 
@@ -36,16 +36,11 @@ onAuthStateChanged(auth, async user => {
         listenHistory();
         hideLoading();
         showApp();
-    } else if (user && user.isAnonymous) {
-        // Just connected anonymously (waiting for real login)
-        uid = user.uid;
+    } else {
+        // Not logged in or just anonymous (show login screen)
         setSyncLive(true);
         hideLoading();
         showAuth();
-    } else {
-        $('loadingTxt').textContent = 'Connecting...';
-        try { await signInAnonymously(auth); }
-        catch (e) { $('loadingTxt').textContent = '⚠ Connection failed.'; }
     }
 });
 
