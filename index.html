@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanIQ — Shipment Intelligence</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="bg-orbs">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+        <div class="orb orb3"></div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loadingScreen">
+        <div class="loading-logo">
+            <div class="loading-icon">📦</div><span class="loading-name">ScanIQ</span>
+        </div>
+        <div class="loading-bar-wrap">
+            <div class="loading-bar"></div>
+        </div>
+        <div class="loading-txt" id="loadingTxt">Starting...</div>
+    </div>
+
+    <!-- AUTH PAGE -->
+    <div id="authPage">
+        <div class="auth-card" id="signinCard">
+            <div class="setup-logo">
+                <div class="setup-logo-icon">📦</div><span class="setup-logo-name">ScanIQ</span>
+            </div>
+            <div class="setup-title">Welcome Back</div>
+            <div class="setup-sub">Sign in to access your shipment intelligence dashboard</div>
+            <form id="signinForm">
+                <label class="form-label">Email</label>
+                <input class="form-input" type="email" id="siEmail" placeholder="you@email.com" required />
+                <label class="form-label">Password</label>
+                <input class="form-input" type="password" id="siPassword" placeholder="••••••••" required />
+                <div id="siError" class="auth-error"></div>
+                <button type="submit" class="btn-primary">Sign In →</button>
+            </form>
+            <div class="auth-switch">Don't have an account? <a href="#" id="goSignup">Create one</a></div>
+        </div>
+        <div class="auth-card hidden" id="signupCard">
+            <div class="setup-logo">
+                <div class="setup-logo-icon">📦</div><span class="setup-logo-name">ScanIQ</span>
+            </div>
+            <div class="setup-title">Create Account</div>
+            <div class="setup-sub">Get started with ScanIQ shipment intelligence</div>
+            <form id="signupForm">
+                <label class="form-label">Full Name</label>
+                <input class="form-input" type="text" id="suName" placeholder="Your name" required />
+                <label class="form-label">Email</label>
+                <input class="form-input" type="email" id="suEmail" placeholder="you@email.com" required />
+                <label class="form-label">Password</label>
+                <input class="form-input" type="password" id="suPassword" placeholder="Min 6 characters" required
+                    minlength="6" />
+                <label class="form-label">Confirm Password</label>
+                <input class="form-input" type="password" id="suConfirm" placeholder="Confirm password" required />
+                <div id="suError" class="auth-error"></div>
+                <button type="submit" class="btn-primary">Create Account →</button>
+            </form>
+            <div class="auth-switch">Already have an account? <a href="#" id="goSignin">Sign in</a></div>
+        </div>
+    </div>
+
+
+
+    <!-- MAIN APP -->
+    <div id="appPage">
+        <nav class="navbar">
+            <div class="nav-logo">
+                <div class="nav-logo-icon">📦</div><span class="nav-logo-name">ScanIQ</span>
+            </div>
+            <div class="nav-right">
+                <span class="nav-user" id="navUser">User</span>
+                <div class="sync-badge">
+                    <div class="sync-dot" id="syncDot"></div><span id="syncLabel">Connecting</span>
+                </div>
+
+                <button class="btn-settings btn-logout-nav" id="logoutBtn">↪ Logout</button>
+            </div>
+        </nav>
+
+        <div class="app-body">
+            <!-- TABS -->
+            <div class="tab-bar">
+                <button class="tab active" data-tab="scanner">📄 Scanner</button>
+                <button class="tab" data-tab="results">📊 Results <span class="tab-badge hidden"
+                        id="resultsBadge">0</span></button>
+                <button class="tab" data-tab="history">📋 History</button>
+            </div>
+
+            <!-- SCANNER TAB -->
+            <div class="tab-content active" id="tab-scanner">
+                <div class="scanner-card">
+                    <div class="drop-zone" id="dropZone">
+                        <input type="file" accept=".pdf" id="fileInput" multiple />
+                        <div class="dz-icon">📄</div>
+                        <div class="dz-title">Drop multiple PDFs here</div>
+                        <div class="dz-hint">Select or drop files · No size limit · AI-powered extraction</div>
+                    </div>
+                    <div class="queue-wrap" id="queueWrap" style="display:none;">
+                        <div class="queue-header">
+                            <span class="queue-label">Queue — <span id="queueCount">0</span> files</span>
+                            <button class="btn-sm" id="clearQueueBtn">✕ Clear All</button>
+                        </div>
+                        <div class="queue-list" id="queueList"></div>
+                    </div>
+                    <button class="btn-scan" id="scanBtn" disabled><span>⚡</span><span id="scanBtnText">Scan All
+                            PDFs</span></button>
+                    <div class="scan-progress" id="scanProgress">
+                        <div class="prog-header">
+                            <div class="prog-dot"></div><span class="prog-label" id="progLabel">Analyzing...</span><span
+                                class="prog-frac" id="progFrac">0/0</span>
+                        </div>
+                        <div class="prog-bar-wrap">
+                            <div class="prog-bar" id="progBar"></div>
+                        </div>
+                    </div>
+                    <div class="error-alert" id="errorAlert"><span>⚠</span><span id="errorText"></span></div>
+                </div>
+            </div>
+
+            <!-- RESULTS TAB -->
+            <div class="tab-content" id="tab-results">
+                <div class="scanner-card">
+                    <div class="hist-toolbar">
+                        <div class="hist-title">📊 Latest Scan Results <span class="hist-count" id="resCount">0
+                                entries</span></div>
+                        <div class="hist-actions"><button class="btn-export" id="exportResBtn">⬇ Export Results</button>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="history-empty" id="resEmpty"><span class="empty-icon">📊</span>No results yet. Scan
+                            PDFs to see extracted data.</div>
+                        <table id="resTable" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>File</th>
+                                    <th>Order No</th>
+                                    <th>SKU</th>
+                                    <th>Total Amount</th>
+                                    <th>Tracking / AWB</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORY TAB -->
+            <div class="tab-content" id="tab-history">
+                <div class="scanner-card">
+                    <div class="hist-toolbar">
+                        <div class="hist-title">📋 Scan History <span class="hist-count" id="histCount">0 entries</span>
+                        </div>
+                        <div class="hist-actions">
+                            <button class="btn-export" id="exportBtn">⬇ Export to Excel</button>
+                            <button class="btn-clear-hist" id="clearHistBtn">🗑 Clear All</button>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <div class="history-empty" id="histEmpty"><span class="empty-icon">🗂️</span>No scans yet.
+                            Upload PDFs to get started.</div>
+                        <table id="histTable" style="display:none;">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>File</th>
+                                    <th>Order No</th>
+                                    <th>SKU</th>
+                                    <th>Total Amount</th>
+                                    <th>Tracking / AWB</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="histBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT MODAL -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal">
+            <button class="modal-close" id="modalCloseBtn">✕</button>
+            <div class="modal-title">Export to Excel</div>
+            <div class="modal-sub">Select a date range to filter records</div>
+            <div class="modal-row">
+                <div class="modal-field"><label>From Date</label><input type="date" id="exportFrom" /></div>
+                <div class="modal-field"><label>To Date</label><input type="date" id="exportTo" /></div>
+            </div>
+            <div class="modal-preview"><span>📊</span><span id="previewText">Select dates to preview</span></div>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="modalCancelBtn">Cancel</button>
+                <button class="btn-modal-export" id="modalExportBtn">⬇ Download Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"><span class="toast-icon" id="toastIcon">✓</span><span id="toastMsg">Done!</span></div>
+
+    <script type="module" src="app.js"></script>
+</body>
+
+</html>
