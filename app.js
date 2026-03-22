@@ -13,6 +13,7 @@ const app = initializeApp({
     messagingSenderId: "864295629112",
     appId: "1:864295629112:web:b71fe1635f1a8ab34991cd",
     measurementId: "G-Y9MNJ6Q0TX"
+
 });
 const auth = getAuth(app);
 const db = getDatabase(app);
@@ -80,7 +81,7 @@ $('signinForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.target.querySelector('button');
     const email = $('siEmail').value.trim(), pass = $('siPassword').value;
-    
+
     try {
         btn.disabled = true; btn.textContent = 'Signing in...';
         await signInWithEmailAndPassword(auth, email, pass);
@@ -100,10 +101,10 @@ $('signupForm').addEventListener('submit', async e => {
     const btn = e.target.querySelector('button');
     const name = $('suName').value.trim(), email = $('suEmail').value.trim();
     const pass = $('suPassword').value, confirm = $('suConfirm').value;
-    
+
     if (pass !== confirm) { showError('suError', 'Passwords do not match.'); return; }
     if (pass.length < 6) { showError('suError', 'Password must be at least 6 characters.'); return; }
-    
+
     try {
         btn.disabled = true; btn.textContent = 'Creating account...';
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
