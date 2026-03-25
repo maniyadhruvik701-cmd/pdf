@@ -214,9 +214,8 @@ async function extractTextFromPDF(file) {
 }
 
 function extractOrderData(text) {
-    // If Amazon invoice detected, IGNORE everything after Page 1 to avoid grabbing the "Rs 17" shipping fee invoice
-    // Check entire text for amazon keyword or FBA Order Number format
-    if (/amazon|asspl|aripl|\d{3}-\d{7}-\d{7}/i.test(text)) {
+    const isAmazon = /amazon|asspl|aripl|\d{3}-\d{7}-\d{7}/i.test(text);
+    if (isAmazon) {
         text = text.split('---PAGE_BREAK---')[0];
     } else {
         // Normal handling: remove the page break markers
@@ -250,16 +249,29 @@ function extractOrderData(text) {
     }
 
     // ═ ORDER NUMBER ═
-    let orderNo = findInLines([
-        /order\s*(?:no|number|id|#)[.\s:=#-]*([A-Za-z0-9][\w\-]{3,35})/i,
-        /order\s*id[.\s:=#-]*([A-Za-z0-9][\w\-]{3,35})/i,
-        /sub[\s-]?order[\s]*(?:no|id)?[.\s:=#-]*([A-Za-z0-9][\w\-]{3,35})/i,
-        /(\d{3}-\d{7}-\d{7})/, // Exact Amazon Format
-        /\b(OD\d{10,})\b/, // Exact Flipkart Format
-    ]);
-    if (!orderNo) orderNo = findLabelVal([/order\s*(?:no|number|id|#)?/i, /order\s*id/i], /[A-Za-z0-9][\w\-]{3,35}/i);
+    let orderNo = null;
+    
+    // 1. Check for specific known formats first (Amazon, Flipkart)
+    const specificPatterns = [
+        /(\d{3}-\d{7}-\d{7})/, // Amazon
+        /\b(OD\d{10,})\b/,      // Flipkart
+    ];
+    
+    for (const p of specificPatterns) {
+        const m = p.exec(text);
+        if (m) { orderNo = m[1]; break; }
+    }
+
+    // 2. Fallback to labeled search if not found
+    if (!orderNo) {
+        orderNo = findInLines([
+            /order\s*(?:id|no|number|#)[.\s:=#-]*([A-Z0-9][A-Z0-9\-]{7,35})/i,
+            /sub[\s-]?order[\s]*(?:no|id)?[.\s:=#-]*([A-Z0-9][A-Z0-9\-]{7,35})/i,
+        ], /date|dated|day/i); // Explicitly skip lines with 'date'
+    }
+
+    if (!orderNo) orderNo = findLabelVal([/order\s*(?:no|number|id|#)?/i, /order\s*id/i], /[A-Z0-9][\w\-]{7,35}/i);
     if (!orderNo) orderNo = findInLines([/\b([A-Z]{2,4}\d{10,})\b/]);
-    if (!orderNo) orderNo = findLabelVal([/order/i], /\d{5,}/);
 
     // ═ SKU ═
     let sku = findInLines([
@@ -282,7 +294,10 @@ function extractOrderData(text) {
         // Lower case for matching
         const lowLine = line.toLowerCase();
 
-        if (/(discount|save|saved|shipping|cgst|sgst|igst|tax|rate|qty|quantity|code)/i.test(line) && !/total/i.test(line)) continue;
+        if (/(discount|save|saved|shipping|cgst|sgst|igst|tax|rate|qty|quantity|code|hsn|phone|tel)/i.test(line) && !/total/i.test(line)) continue;
+        
+        // Extra check for Amazon: if line contains "Total Tax" or "Total Shipping", skip it unless it's the only total
+        if (isAmazon && /total\s*(tax|shipping|discount|savings|qty)/i.test(line)) continue;
 
         let m;
         let lineVals = [];
@@ -301,7 +316,7 @@ function extractOrderData(text) {
 
     let finalAmount = null;
     // Strategy 1: Explicit Grand Total / Invoice Value
-    const strongRx = /\b(?:grand\s*total|total\s*invoice\s*value|invoice\s*value|total\s*payable|amount\s*payable|total\s*amount|total\s*(?:\(rs\.\)|rs))\b/i;
+    const strongRx = /\b(?:grand\s*total|invoice\s*total|total\s*invoice\s*value|invoice\s*value|total\s*payable|amount\s*payable|total\s*amount|total\s*(?:\(rs\.\)|rs))\b/i;
 
     const strictLabel = amounts.slice().reverse().find(a =>
         strongRx.test(a.line) ||
